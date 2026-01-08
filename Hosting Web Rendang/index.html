@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KSL Smart Home System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+       
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 480px; margin: 0 auto; padding-bottom: 50px; }
+        
+        .header-card {
+            background: linear-gradient(135deg, #0d6efd, #0a58ca);
+            color: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(13, 110, 253, 0.3);
+            margin-bottom: 25px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+       
+        .header-card::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            transform: rotate(45deg); pointer-events: none;
+        }
+
+        .temp-display { font-size: 3.5em; font-weight: 700; margin: 10px 0; letter-spacing: -1px; }
+        .status-badge { 
+            background: rgba(255,255,255,0.25); 
+            padding: 6px 15px; 
+            border-radius: 30px; 
+            font-size: 0.85em; 
+            font-weight: 600;
+            backdrop-filter: blur(5px);
+        }
+        
+        /* GRID SYSTEM LAMPU */
+        .section-title { margin-left: 10px; margin-bottom: 15px; color: #555; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .grid-lampu { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
+        
+        .card-lampu {
+            background: white; padding: 15px; border-radius: 18px; text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 2px solid transparent;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        
+        /* State Lampu Nyala */
+        .card-lampu.active { border-color: #ffc107; background: #fffdf5; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255, 193, 7, 0.15); }
+        .card-lampu.active .icon-lampu { color: #ffc107; filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.6)); }
+
+        .icon-area { cursor: pointer; padding: 10px; }
+        .icon-lampu { font-size: 2.2em; color: #d1d5db; transition: 0.4s; margin-bottom: 8px; }
+        .label-lampu { font-weight: 600; font-size: 0.9em; color: #4b5563; }
+        
+        /* SLIDER CUSTOM */
+        .slider-container { width: 100%; margin-top: 10px; padding: 0 5px; box-sizing: border-box;}
+        input[type=range] {
+            width: 100%; height: 6px; background: #e5e7eb; border-radius: 10px; outline: none; -webkit-appearance: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; 
+            background: #ffffff; border: 2px solid #0d6efd; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s;
+        }
+        input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); background: #0d6efd; }
+
+        /* GERBANG PANEL */
+        .card-gerbang { 
+            background: white; padding: 25px; border-radius: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: center; 
+        }
+        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+        .btn { 
+            flex: 1; padding: 14px; border: none; border-radius: 12px; 
+            font-weight: 700; cursor: pointer; color: white; transition: 0.2s; 
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 1em;
+        }
+        .btn-open { background: linear-gradient(135deg, #198754, #157347); box-shadow: 0 4px 10px rgba(25, 135, 84, 0.2); }
+        .btn-close { background: linear-gradient(135deg, #dc3545, #bb2d3b); box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2); }
+        .btn:active { transform: scale(0.96); opacity: 0.9; }
+
+        /* FOOTER */
+        .footer { text-align: center; margin-top: 40px; color: #9ca3af; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div class="header-card">
+        <div style="font-size: 0.9em; opacity: 0.9;"><i class="fas fa-wifi"></i> SYSTEM DASHBOARD</div>
+        <div style="font-size: 1.2em; font-weight: bold;">RUMAH RENDANG</div>
+        
+        <div class="temp-display"><span id="suhu">--</span><span style="font-size:0.5em; vertical-align: top;">°C</span></div>
+        
+        <div class="status-badge">
+            <i class="fas fa-circle" style="font-size: 0.6em; margin-right: 5px;"></i>
+            <span id="conn-status">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="section-title"><i class="fas fa-lightbulb" style="color: #ffc107;"></i> Smart Lighting</div>
+    <div class="grid-lampu">
+        
+        <div class="card-lampu" id="card-teras">
+            <div class="icon-area" onclick="toggleLampu('teras')">
+                <i class="fas fa-home icon-lampu"></i>
+                <div class="label-lampu">Teras</div>
+            </div>
+            <div class="slider-container">
+                <input type="range" id="slider-teras" min="0" max="255" value="0" 
+                       oninput="geserSlider('teras', this.value)" onchange="kirimSlider('teras', this.value)">
+            </div>
+        </div>
+
+        <div class="card-lampu" id="card-tamu">
+            <div class="icon-area" onclick="toggleLampu('tamu')">
+                <i class="fas fa-couch icon-lampu"></i>
+                <div class="label-lampu">R. Tamu</div>
+            </div>
+            <div class="slider-container">
+                <input type="range" id="slider-tamu" min="0" max="255" value="0" 
+                       oninput="geserSlider('tamu', this.value)" onchange="kirimSlider('tamu', this.value)">
+            </div>
+        </div>
+
+        <div class="card-lampu" id="card-tidur">
+            <div class="icon-area" onclick="toggleLampu('tidur')">
+                <i class="fas fa-bed icon-lampu"></i>
+                <div class="label-lampu">K. Tidur</div>
+            </div>
+            <div class="slider-container">
+                <input type="range" id="slider-tidur" min="0" max="255" value="0" 
+                       oninput="geserSlider('tidur', this.value)" onchange="kirimSlider('tidur', this.value)">
+            </div>
+        </div>
+
+        <div class="card-lampu" id="card-dapur">
+            <div class="icon-area" onclick="toggleLampu('dapur')">
+                <i class="fas fa-utensils icon-lampu"></i>
+                <div class="label-lampu">Dapur</div>
+            </div>
+            <div class="slider-container">
+                <input type="range" id="slider-dapur" min="0" max="255" value="0" 
+                       oninput="geserSlider('dapur', this.value)" onchange="kirimSlider('dapur', this.value)">
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title"><i class="fas fa-dungeon" style="color: #6c757d;"></i> Gate Control</div>
+    <div class="card-gerbang">
+        <div id="status-gerbang" style="color:#6b7280; font-weight: 500;">Status: Menunggu Perintah</div>
+        <div class="btn-group">
+            <button class="btn btn-open" onclick="gerbang('BUKA')">
+                <i class="fas fa-lock-open"></i> BUKA
+            </button>
+            <button class="btn btn-close" onclick="gerbang('TUTUP')">
+                <i class="fas fa-lock"></i> TUTUP
+            </button>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2025 KSL ITB STIKOM BALI<br>Ketua Umum Project
+    </div>
+</div>
+
+<script>
+    //  KONFIGURASI MQTT (SECURE / WSS)
+    const broker = "broker.emqx.io";
+    const port = 8084; // Port 8084 WAJIB untuk GitHub Pages/Hosting HTTPS
+    const topicBase = "proyekiot/lampu/"; 
+    
+    // ID Unik Random biar server gak bingung
+    const clientID = "WebKSL-" + parseInt(Math.random() * 100000);
+
+    // Variabel Simpan Status Lokal
+    let statusLampu = { teras: 0, tamu: 0, tidur: 0, dapur: 0 };
+
+    // Inisialisasi Client
+    const client = new Paho.MQTT.Client(broker, port, clientID);
+
+    // --- EVENT HANDLERS ---
+    
+    // 1. Saat Koneksi Putus
+    client.onConnectionLost = function(responseObject) {
+        console.log("Koneksi Putus: " + responseObject.errorMessage);
+        updateStatus("OFFLINE", "red");
+    };
+
+    // 2. Saat Pesan Masuk (Dari ESP32)
+    client.onMessageArrived = function(message) {
+        console.log("Masuk: " + message.destinationName + " -> " + message.payloadString);
+        
+        // Update Suhu jika topiknya sesuai
+        if (message.destinationName === "proyekiot/sensor/suhu") {
+            document.getElementById("suhu").innerText = message.payloadString;
+        }
+    };
+
+    // 3. FUNGSI KONEKSI UTAMA
+    console.log("Menghubungkan ke " + broker + ":" + port);
+    client.connect({
+        useSSL: true, // <--- WAJIB TRUE UNTUK HOSTING
+        timeout: 3,
+        onSuccess: function() {
+            console.log("Berhasil Terhubung!");
+            updateStatus("ONLINE", "#a3ffac"); // Warna Hijau Muda
+            
+            // Subscribe ke topik sensor suhu
+            client.subscribe("proyekiot/sensor/suhu");
+        },
+        onFailure: function(e) {
+            console.log("Gagal Konek: ", e);
+            updateStatus("ERROR", "orange");
+            alert("Gagal konek ke Server MQTT. Cek internet!");
+        }
+    });
+
+    // ============================================
+    // 💡 LOGIKA UI & KONTROL
+    // ============================================
+
+    function updateStatus(teks, warna) {
+        const el = document.getElementById("conn-status");
+        el.innerText = teks;
+        el.style.color = warna;
+        if(teks === "ONLINE") el.parentElement.style.background = "rgba(25, 135, 84, 0.3)";
+        else el.parentElement.style.background = "rgba(220, 53, 69, 0.3)";
+    }
+
+    // --- FUNGSI SLIDER (DIMMER) ---
+    
+    // Dipanggil saat slider digeser (Visual Update Only)
+    function geserSlider(ruang, nilai) {
+        // Cuma ubah tampilan biar smooth, data dikirim pas dilepas
+        updateVisualCard(ruang, nilai);
+    }
+
+    // Dipanggil saat slider dilepas (Kirim Data ke ESP32)
+    function kirimSlider(ruang, nilai) {
+        statusLampu[ruang] = parseInt(nilai);
+        kirimMQTT(topicBase + ruang, nilai);
+    }
+
+    // --- FUNGSI TOMBOL IKON (SAKLAR CEPAT) ---
+    function toggleLampu(ruang) {
+        const slider = document.getElementById("slider-" + ruang);
+        let nilaiBaru;
+
+        // Logika Toggle: Kalau nyala (>0) matikan, kalau mati nyalakan full
+        if (statusLampu[ruang] > 0) {
+            nilaiBaru = 0;
+        } else {
+            nilaiBaru = 255;
+        }
+
+        // Update Slider, Variabel & Kirim
+        slider.value = nilaiBaru;
+        statusLampu[ruang] = nilaiBaru;
+        
+        updateVisualCard(ruang, nilaiBaru);
+        kirimMQTT(topicBase + ruang, nilaiBaru.toString());
+    }
+
+    // Update Warna Kartu Kuning/Putih
+    function updateVisualCard(ruang, nilai) {
+        const card = document.getElementById("card-" + ruang);
+        if (nilai > 0) {
+            card.classList.add("active");
+        } else {
+            card.classList.remove("active");
+        }
+    }
+
+    // --- FUNGSI GERBANG ---
+    function gerbang(perintah) {
+        const statusText = document.getElementById("status-gerbang");
+        statusText.innerText = "Sedang " + perintah + "...";
+        statusText.style.color = "#0d6efd"; // Biru saat proses
+        
+        kirimMQTT("proyekiot/gerbang", perintah);
+        
+        // Kembalikan teks setelah 5 detik
+        setTimeout(() => {
+            statusText.innerText = "Posisi Terakhir: " + perintah;
+            statusText.style.color = "#6b7280"; // Abu-abu lagi
+        }, 5000);
+    }
+
+    // Fungsi Pembantu Kirim MQTT
+    function kirimMQTT(topik, pesan) {
+        if (client.isConnected()) {
+            message = new Paho.MQTT.Message(pesan);
+            message.destinationName = topik;
+            client.send(message);
+            console.log("Dikirim: " + topik + " = " + pesan);
+        } else {
+            alert("Koneksi Server Terputus! Coba Refresh.");
+        }
+    }
+</script>
+
+</body>
+</html>
