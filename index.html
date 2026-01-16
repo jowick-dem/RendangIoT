@@ -3,13 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KSL Smart Home System</title>
+    <title>Rendank Smart Home System</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <style>
        
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+/* --- STYLE DASAR (LIGHT MODE) --- */
+        :root {
+            --bg-body: #f0f2f5;
+            --text-main: #333;
+            --text-sec: #555;
+            --bg-card: #ffffff;
+            --shadow-card: 0 4px 15px rgba(0,0,0,0.03);
+            --lamp-active-bg: #fffdf5;
+            --lamp-active-border: #ffc107;
+            --icon-inactive: #d1d5db;
+        }
+
+        /* --- STYLE DARK MODE (VARIABLE OVERRIDE) --- */
+        body.dark-mode {
+            --bg-body: #18191a;
+            --text-main: #e4e6eb;
+            --text-sec: #b0b3b8;
+            --bg-card: #242526;
+            --shadow-card: 0 4px 15px rgba(0,0,0,0.3);
+            --lamp-active-bg: #3a3b3c; /* Gelap tapi agak terang dikit */
+            --lamp-active-border: #ffd700;
+            --icon-inactive: #4e4f50;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-body); margin: 0; padding: 20px; color: var(--text-main); transition: background 0.3s, color 0.3s; }
         .container { max-width: 480px; margin: 0 auto; padding-bottom: 50px; }
         
         .header-card {
@@ -23,7 +47,25 @@
             position: relative;
             overflow: hidden;
         }
-       
+        
+        /* Tombol Dark Mode */
+        .theme-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            color: white;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.3s;
+        }
+        .theme-toggle:hover { background: rgba(255,255,255,0.4); transform: rotate(15deg); }
+
         .header-card::before {
             content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
             background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
@@ -41,29 +83,37 @@
         }
         
         /* GRID SYSTEM LAMPU */
-        .section-title { margin-left: 10px; margin-bottom: 15px; color: #555; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .section-title { margin-left: 10px; margin-bottom: 15px; color: var(--text-sec); font-weight: 600; display: flex; align-items: center; gap: 8px; transition: color 0.3s; }
         .grid-lampu { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
         
         .card-lampu {
-            background: white; padding: 15px; border-radius: 18px; text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            background: var(--bg-card); padding: 15px; border-radius: 18px; text-align: center;
+            box-shadow: var(--shadow-card); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             border: 2px solid transparent;
             display: flex; flex-direction: column; justify-content: space-between;
         }
         
         /* State Lampu Nyala */
-        .card-lampu.active { border-color: #ffc107; background: #fffdf5; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255, 193, 7, 0.15); }
+        .card-lampu.active { 
+            border-color: var(--lamp-active-border); 
+            background: var(--lamp-active-bg); 
+            transform: translateY(-3px); 
+            box-shadow: 0 8px 20px rgba(255, 193, 7, 0.15); 
+        }
         .card-lampu.active .icon-lampu { color: #ffc107; filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.6)); }
 
         .icon-area { cursor: pointer; padding: 10px; }
-        .icon-lampu { font-size: 2.2em; color: #d1d5db; transition: 0.4s; margin-bottom: 8px; }
-        .label-lampu { font-weight: 600; font-size: 0.9em; color: #4b5563; }
+        .icon-lampu { font-size: 2.2em; color: var(--icon-inactive); transition: 0.4s; margin-bottom: 8px; }
+        .label-lampu { font-weight: 600; font-size: 0.9em; color: var(--text-sec); }
         
         /* SLIDER CUSTOM */
         .slider-container { width: 100%; margin-top: 10px; padding: 0 5px; box-sizing: border-box;}
         input[type=range] {
             width: 100%; height: 6px; background: #e5e7eb; border-radius: 10px; outline: none; -webkit-appearance: none;
         }
+        /* Penyesuaian track slider di dark mode */
+        body.dark-mode input[type=range] { background: #4e4f50; }
+
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; 
             background: #ffffff; border: 2px solid #0d6efd; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s;
@@ -72,8 +122,9 @@
 
         /* GERBANG PANEL */
         .card-gerbang { 
-            background: white; padding: 25px; border-radius: 20px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: center; 
+            background: var(--bg-card); padding: 25px; border-radius: 20px; 
+            box-shadow: var(--shadow-card); text-align: center; 
+            transition: background 0.3s;
         }
         .btn-group { display: flex; gap: 12px; margin-top: 20px; }
         .btn { 
@@ -88,24 +139,30 @@
         /* FOOTER */
         .footer { text-align: center; margin-top: 40px; color: #9ca3af; font-size: 0.8em; }
     </style>
+    </style>
 </head>
 <body>
-
-<div class="container">
+    <div class="container">
     
     <div class="header-card">
-        <div style="font-size: 0.9em; opacity: 0.9;"><i class="fas fa-wifi"></i> SYSTEM DASHBOARD</div>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+
+        <div style="font-size: 0.9em; opacity: 0.9;"><i class="fas fa-wifi"></i> Main Control Dashboard</div>
         <div style="font-size: 1.2em; font-weight: bold;">RUMAH RENDANG</div>
         
         <div class="temp-display"><span id="suhu">--</span><span style="font-size:0.5em; vertical-align: top;">°C</span></div>
         
+        <div class="clock-display" id="jam-digital">--:--:-- --</div>
+
         <div class="status-badge">
             <i class="fas fa-circle" style="font-size: 0.6em; margin-right: 5px;"></i>
             <span id="conn-status">Connecting...</span>
         </div>
     </div>
 
-    <div class="section-title"><i class="fas fa-lightbulb" style="color: #ffc107;"></i> Smart Lighting</div>
+    <div class="section-title"><i class="fas fa-lightbulb" style="color: #ffc107;"></i> List Lampu Rumah Rendang</div>
     <div class="grid-lampu">
         
         <div class="card-lampu" id="card-teras">
@@ -153,7 +210,7 @@
         </div>
     </div>
 
-    <div class="section-title"><i class="fas fa-dungeon" style="color: #6c757d;"></i> Gate Control</div>
+    <div class="section-title"><i class="fas fa-dungeon" style="color: #6c757d;"></i> Gate Control System</div>
     <div class="card-gerbang">
         <div id="status-gerbang" style="color:#6b7280; font-weight: 500;">Status: Menunggu Perintah</div>
         <div class="btn-group">
@@ -167,11 +224,53 @@
     </div>
 
     <div class="footer">
-        © 2025 KSL ITB STIKOM BALI<br>Ketua Umum Project
+        © 2025 Internet of Things<br>DQ241
     </div>
 </div>
 
 <script>
+
+    function updateClock() {
+        const now = new Date();
+        // Opsi Format Waktu
+        const options = {
+            timeZone: 'Asia/Makassar', // Ini zona waktu GMT+8 (WITA)
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true // Format AM/PM
+        };
+        
+        // Mengubah waktu ke string sesuai opsi
+        const timeString = now.toLocaleTimeString('en-US', options);
+        document.getElementById('jam-digital').innerText = timeString;
+    }
+
+    // Jalankan fungsi update setiap 1000ms (1 detik)
+    setInterval(updateClock, 1000);
+    updateClock(); // Jalankan sekali di awal biar gak nunggu 1 detik
+    // --- LOGIKA DARK MODE ---
+    // Cek apakah user pernah simpan preferensi sebelumnya
+    const savedTheme = localStorage.getItem('theme');
+    const iconTheme = document.getElementById('theme-icon');
+    
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        iconTheme.classList.replace('fa-moon', 'fa-sun');
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        
+        // Ubah Icon dan Simpan ke LocalStorage
+        if (document.body.classList.contains('dark-mode')) {
+            iconTheme.classList.replace('fa-moon', 'fa-sun');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            iconTheme.classList.replace('fa-sun', 'fa-moon');
+            localStorage.setItem('theme', 'light');
+        }
+    }
     //  KONFIGURASI MQTT (SECURE / WSS)
     const broker = "broker.emqx.io";
     const port = 8084; // Port 8084 WAJIB untuk GitHub Pages/Hosting HTTPS
