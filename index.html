@@ -72,7 +72,18 @@
             transform: rotate(45deg); pointer-events: none;
         }
 
-        .temp-display { font-size: 3.5em; font-weight: 700; margin: 10px 0; letter-spacing: -1px; }
+        .temp-display { font-size: 3.5em; font-weight: 700; margin-top: 10px; letter-spacing: -1px; line-height: 1; }
+        
+        /* STYLE BARU UNTUK KETERANGAN SUHU */
+        #ket-suhu {
+            font-size: 1.2em;
+            font-weight: 500;
+            margin-bottom: 15px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
         .status-badge { 
             background: rgba(255,255,255,0.25); 
             padding: 6px 15px; 
@@ -155,6 +166,8 @@
         <div class="temp-display"><span id="suhu">--</span><span style="font-size:0.5em; vertical-align: top;">°C</span></div>
         
         <div class="clock-display" id="jam-digital">--:--:-- --</div>
+        
+        <div id="ket-suhu">Normal</div>
 
         <div class="status-badge">
             <i class="fas fa-circle" style="font-size: 0.6em; margin-right: 5px;"></i>
@@ -277,7 +290,7 @@
     const topicBase = "proyekiot/lampu/"; 
     
     // ID Unik Random biar server gak bingung
-    const clientID = "WebKSL-" + parseInt(Math.random() * 100000);
+    const clientID = "RenDangiOT-" + parseInt(Math.random() * 100000);
 
     // Variabel Simpan Status Lokal
     let statusLampu = { teras: 0, tamu: 0, tidur: 0, dapur: 0 };
@@ -300,6 +313,10 @@
         // Update Suhu jika topiknya sesuai
         if (message.destinationName === "proyekiot/sensor/suhu") {
             document.getElementById("suhu").innerText = message.payloadString;
+        }
+        // --- LOGIKA BARU: Cek Topik Status Suhu ---
+        else if (message.destinationName === "proyekiot/status/suhu") {
+            document.getElementById("ket-suhu").innerText = message.payloadString;
         }
     };
 
@@ -408,3 +425,4 @@
 
 </body>
 </html>
+
