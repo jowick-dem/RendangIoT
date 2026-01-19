@@ -74,15 +74,40 @@
 
         .temp-display { font-size: 3.5em; font-weight: 700; margin-top: 10px; letter-spacing: -1px; line-height: 1; }
         
-        /* STYLE BARU UNTUK KETERANGAN SUHU */
-        #ket-suhu {
-            font-size: 1.2em;
-            font-weight: 500;
+        /* --- CSS KHUSUS STATUS SUHU (BARU) --- */
+        #status-wrapper {
+            margin-top: 10px;
             margin-bottom: 15px;
-            opacity: 0.9;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
+
+        #icon-suhu { font-size: 1.5em; transition: all 0.5s ease; }
+        #ket-suhu { font-size: 1.2em; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Animasi Matahari Menyala (Pulse) */
+        @keyframes sun-glow {
+            0% { transform: scale(1); text-shadow: 0 0 10px #ffc107; }
+            50% { transform: scale(1.15); text-shadow: 0 0 25px #ffd700; }
+            100% { transform: scale(1); text-shadow: 0 0 10px #ffc107; }
+        }
+        .anim-panas { animation: sun-glow 2s infinite ease-in-out; color: #ffeb3b; }
+
+        /* Animasi Salju Berputar (Spin) */
+        @keyframes snow-spin { 100% { transform: rotate(360deg); } }
+        .anim-dingin { animation: snow-spin 4s linear infinite; color: #80e5ff; }
+
+        /* Animasi Normal (Floating) */
+        @keyframes float-normal { 
+            0% { transform: translateY(0px); } 
+            50% { transform: translateY(-5px); } 
+            100% { transform: translateY(0px); } 
+        }
+        .anim-normal { animation: float-normal 3s ease-in-out infinite; color: #ffffff; }
+
+        /* ------------------------------------ */
         
         .status-badge { 
             background: rgba(255,255,255,0.25); 
@@ -164,6 +189,10 @@
         <div style="font-size: 1.2em; font-weight: bold;">RUMAH RENDANG</div>
         
         <div class="temp-display"><span id="suhu">--</span><span style="font-size:0.5em; vertical-align: top;">°C</span></div>
+
+        <div id="status-wrapper">
+            <i id="icon-suhu" class="fas fa-thermometer-half"></i> <span id="ket-suhu">NORMAL</span>
+        </div>
         
         <div class="clock-display" id="jam-digital">--:--:-- --</div>
         
@@ -316,7 +345,8 @@
         }
         // --- LOGIKA BARU: Cek Topik Status Suhu ---
         else if (message.destinationName === "proyekiot/status/suhu") {
-            document.getElementById("ket-suhu").innerText = message.payloadString;
+            // Panggil Fungsi Update Ikon & Teks
+            updateInfoSuhu(message.payloadString);
         }
     };
 
@@ -331,6 +361,7 @@
             
             // Subscribe ke topik sensor suhu
             client.subscribe("proyekiot/sensor/suhu");
+            client.subscribe("proyekiot/status/suhu")
         },
         onFailure: function(e) {
             console.log("Gagal Konek: ", e);
@@ -343,6 +374,29 @@
     // 💡 LOGIKA UI & KONTROL
     // ============================================
 
+    // --- FUNGSI UPDATE LOGO & STATUS (BARU) ---
+    function updateInfoSuhu(status) {
+        const textEl = document.getElementById("ket-suhu");
+        const iconEl = document.getElementById("icon-suhu");
+
+        // Update Teks
+        textEl.innerText = status;
+
+        // Reset Class Ikon agar tidak menumpuk
+        iconEl.className = "fas"; 
+
+        // Logika Ganti Ikon & Animasi
+        if (status === "Panas") {
+            iconEl.classList.add("fa-sun", "anim-panas"); // Matahari + Pulse
+        } 
+        else if (status === "Sejuk") {
+            iconEl.classList.add("fa-snowflake", "anim-dingin"); // Bunga Es + Spin
+        } 
+        else {
+            iconEl.classList.add("fa-cloud-sun", "anim-normal"); // Awan/Matahari Calm
+        }
+    }
+    
     function updateStatus(teks, warna) {
         const el = document.getElementById("conn-status");
         el.innerText = teks;
@@ -425,4 +479,5 @@
 
 </body>
 </html>
+
 
