@@ -181,8 +181,8 @@
 
 <script>
     // --- KONFIGURASI MQTT ---
-    // Sesuaikan user123 dengan kode ESP32 Anda!
-    const baseTopic = "proyekiot/user123/"; 
+    // PERBAIKAN: Disesuaikan dengan kode C++ Anda (tanpa user123)
+    const baseTopic = "proyekiot/"; 
     const broker = "broker.emqx.io";
     const port = 8084; // SSL Port
     const clientID = "WebClient-" + parseInt(Math.random() * 100000);
@@ -212,8 +212,6 @@
         if (topic === baseTopic + "sensor/suhu") {
             const tempVal = parseFloat(payload);
             document.getElementById("suhu").innerText = tempVal;
-            
-            // Logika UI Status Suhu (Hitung di Web, bukan di ESP32)
             updateInfoSuhu(tempVal);
         }
     };
@@ -241,6 +239,9 @@
     // --- FUNGSI KONTROL ---
     function kirimMQTT(subTopic, pesan) {
         if (client.isConnected()) {
+            // baseTopic = "proyekiot/"
+            // subTopic misalnya = "lampu/teras"
+            // Jadi: "proyekiot/lampu/teras" -> Sesuai C++
             const topic = baseTopic + subTopic;
             const message = new Paho.MQTT.Message(pesan);
             message.destinationName = topic;
@@ -250,15 +251,15 @@
 
     // 1. Lampu Slider
     function geserSlider(ruang, nilai) {
-        updateVisualCard(ruang, nilai); // Update visual saja
+        updateVisualCard(ruang, nilai); 
     }
     
     function kirimSlider(ruang, nilai) {
         statusLampu[ruang] = parseInt(nilai);
-        kirimMQTT("lampu/" + ruang, nilai); // Kirim data final
+        kirimMQTT("lampu/" + ruang, nilai); 
     }
 
-    // 2. Lampu Toggle (Klik Ikon)
+    // 2. Lampu Toggle
     function toggleLampu(ruang) {
         const slider = document.getElementById("slider-" + ruang);
         let nilaiBaru = (statusLampu[ruang] > 0) ? 0 : 255;
@@ -281,6 +282,8 @@
         st.innerText = "Proses " + cmd + "...";
         st.style.color = "#0d6efd";
         
+        // Di sini kita kirim langsung "gerbang"
+        // Hasilnya: "proyekiot/" + "gerbang" = "proyekiot/gerbang"
         kirimMQTT("gerbang", cmd);
 
         setTimeout(() => {
@@ -289,11 +292,11 @@
         }, 5000);
     }
 
-    // 4. Logika UI Suhu (Baru)
+    // 4. Logika UI Suhu
     function updateInfoSuhu(suhu) {
         const textEl = document.getElementById("ket-suhu");
         const iconEl = document.getElementById("icon-suhu");
-        iconEl.className = "fas"; // Reset icon
+        iconEl.className = "fas"; 
 
         if (suhu >= 30) {
             textEl.innerText = "PANAS";
